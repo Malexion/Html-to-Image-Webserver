@@ -46,4 +46,4 @@ Requires Node v7.6.0 or greater.
 
 ## License
 
-This project is licensed under the ISC License.
+This project is licensed under the The Unlicense [https://github.com/Malexion/Html-to-Image-Webserver/blob/master/LICENSE](https://github.com/Malexion/Html-to-Image-Webserver/blob/master/LICENSE).
