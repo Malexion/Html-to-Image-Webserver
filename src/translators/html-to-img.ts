@@ -1,15 +1,19 @@
 
-import puppeteer from 'puppeteer';
+import puppeteer, { PDFFormat } from 'puppeteer';
 import { ITranslator } from './ITranslator';
 import { clean } from '../utilities/clean';
 import { getViewport } from '../utilities/get-viewport';
 
+type downloadType = 'jpeg' | 'png' | 'pdf';
+
 export class HtmlToImg implements ITranslator {
 
-    fileType: "jpeg" | "png" | undefined;
+    fileType: downloadType;
+    formatType: PDFFormat;
 
-    constructor(fileType: "jpeg" | "png" | undefined = 'png') {
+    constructor(fileType: downloadType = 'png', format: PDFFormat = 'A4') {
         this.fileType = fileType;
+        this.formatType = format;
     }
     
     async convert(html: string): Promise<string | Buffer> {
@@ -24,28 +28,19 @@ export class HtmlToImg implements ITranslator {
                 </body>
             </html>
         `);
-        return await page.screenshot({
-            type: this.fileType,
-            encoding: 'binary',
-            omitBackground: true
-        });
+        await page.emulateMedia('screen');
+        if(this.fileType == 'png' || this.fileType == 'jpeg') {
+            return await page.screenshot({
+                type: this.fileType,
+                encoding: 'binary',
+                omitBackground: true
+            });
+        } else if(this.fileType == 'pdf') {
+            return await page.pdf({
+                format: this.formatType
+            });
+        } else
+            throw "Unknown Download Type";
     }
 
 }
-
-
-// import fs from 'fs';
-
-// const file = 'radar';
-
-// (async () => {
-//     try {
-//         let html = fs.readFileSync(`${__dirname}/../${file}.svg`, { encoding: 'utf8' });
-        
-    
-//         fs.writeFileSync(`${__dirname}/../${file}.png`, image);
-//     } catch(err) {
-//         console.log(err);
-//     }
-
-// })();
