@@ -2,21 +2,25 @@
 import express, { Express, Request, Response } from 'express';
 import { HtmlToImg } from '../translators/html-to-img';
 import { ITranslator } from '../translators/ITranslator';
+const cors = require('cors');
 
 async function processContent(translator: ITranslator, req: Request, res: Response) {
-    let html = req.body.content || '';
-    if(html) {
+    console.log(`PROCESS: ${translator.ctx.type}`);
+    if(translator.ctx && translator.ctx.content) {
         try {
-            let file = await translator.convert(<string>html);
+            let file = await translator.convert();
             res.status(200);
             res.send({ msg: 'Success', file });
+            console.log(`SUCCESS`);
         } catch(err) {
             res.status(500);
             res.send({ msg: err, file: null });
+            console.log(`ERROR: ${err}`);
         }
     } else {
         res.status(500);
         res.send({ msg: 'No Data to Convert!', file: null });
+        console.log('ERROR: No Data to Convert!');
     }
 }
 
@@ -28,29 +32,33 @@ export class WebServer {
         this.app = app;
         
         if(crossOrigin) {
-            app.use(function(req, res, next) {
-                res.header("Access-Control-Allow-Origin", "*");
-                res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-                next();
-            });
+            app.use(cors());
         }
 
         app.use(express.json({ limit: jsonLimit }));
 
+        app.options('/html-to-png', cors());
         app.post('/html-to-png', (req, res) => {
-            processContent(new HtmlToImg('png'), req, res);
+            processContent(new HtmlToImg({ type: 'png', ...req.body }), req, res);
         });
 
+        app.options('/html-to-jpeg', cors());
         app.post('/html-to-jpeg', (req, res) => {
-            processContent(new HtmlToImg('jpeg'), req, res);
+            processContent(new HtmlToImg({ type: 'jpeg', ...req.body }), req, res);
         });
 
+        app.options('/html-to-pdf', cors());
         app.post('/html-to-pdf', (req, res) => {
-            processContent(new HtmlToImg('pdf', 'Letter'), req, res);
+            processContent(new HtmlToImg({ type: 'pdf', ...req.body }), req, res);
         });
     }
 
-    start(port: string | number, callback?: () => void) {
-        return this.app.listen(parseInt(port.toString()), callback);
+    start(port: string | number): Promise<number> {
+        let portInt = parseInt(port.toString());
+        return new Promise(done => {
+            this.app.listen(portInt, () => {
+                done(portInt);
+            });
+        });
     }
 }

@@ -1,6 +1,10 @@
 
+import { ITranslationContext } from './ITranslationContext';
+
 export interface ITranslator {
     
-    convert(html: string): Promise<string | Buffer>;
+    ctx: ITranslationContext;
+    
+    convert(): Promise<string | Buffer>;
 
 }

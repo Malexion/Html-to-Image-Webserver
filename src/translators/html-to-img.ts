@@ -1,46 +1,50 @@
 
-import puppeteer, { PDFFormat } from 'puppeteer';
+import puppeteer, { Request } from 'puppeteer';
 import { ITranslator } from './ITranslator';
-import { clean } from '../utilities/clean';
 import { getViewport } from '../utilities/get-viewport';
-
-type downloadType = 'jpeg' | 'png' | 'pdf';
+import { getContent } from '../utilities/get-content';
+import { ITranslationContext, TranslationDefaults } from './ITranslationContext';
 
 export class HtmlToImg implements ITranslator {
 
-    fileType: downloadType;
-    formatType: PDFFormat;
+    ctx: ITranslationContext;
 
-    constructor(fileType: downloadType = 'png', format: PDFFormat = 'A4') {
-        this.fileType = fileType;
-        this.formatType = format;
+    constructor(ctx: ITranslationContext) {
+        this.ctx = ctx;
     }
     
-    async convert(html: string): Promise<string | Buffer> {
-        const content = clean(html);
+    async convert(): Promise<string | Buffer> {
+        let ctx = { ...TranslationDefaults, ...this.ctx };
         const browser = await puppeteer.launch();
         const page = await browser.newPage();
-        await page.setViewport(getViewport(content));
-        await page.setContent(`
-            <html lang="en">
-                <body>
-                    ${content}
-                </body>
-            </html>
-        `);
+        await page.setRequestInterception(true);
+        page.on('request', (request: Request) => {
+            if(request.resourceType() === 'script')
+                request.abort();
+            else
+                request.continue();
+        });
+        await page.setViewport(getViewport(ctx));
+        await page.setContent(getContent(ctx));
         await page.emulateMedia('screen');
-        if(this.fileType == 'png' || this.fileType == 'jpeg') {
-            return await page.screenshot({
-                type: this.fileType,
+        await page.emulateMedia('print');
+        let buffer: Buffer;
+        if(this.ctx.type == 'png' || this.ctx.type == 'jpeg') {
+            buffer = await page.screenshot({
+                type: this.ctx.type,
                 encoding: 'binary',
                 omitBackground: true
             });
-        } else if(this.fileType == 'pdf') {
-            return await page.pdf({
-                format: this.formatType
+        } else if(this.ctx.type == 'pdf') {
+            buffer = await page.pdf({
+                format: this.ctx.format
             });
-        } else
+        } else {
+            await browser.close();
             throw "Unknown Download Type";
+        }
+        await browser.close();
+        return buffer;
     }
 
 }
